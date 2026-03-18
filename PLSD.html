@@ -1,0 +1,1318 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>4Q Dashboard — Quotient Intelligence Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #030303;
+    --bg2: #0a0a0a;
+    --bg3: #111111;
+    --bg4: #181818;
+    --border: #1e1e1e;
+    --border2: #2a2a2a;
+ 
+    --pq: #00f5ff;
+    --iq: #bf5fff;
+    --eq: #ff4ecd;
+    --sq: #39ff14;
+ 
+    --pq-dim: rgba(0,245,255,0.12);
+    --iq-dim: rgba(191,95,255,0.12);
+    --eq-dim: rgba(255,78,205,0.12);
+    --sq-dim: rgba(57,255,20,0.12);
+ 
+    --pq-glow: 0 0 20px rgba(0,245,255,0.4);
+    --iq-glow: 0 0 20px rgba(191,95,255,0.4);
+    --eq-glow: 0 0 20px rgba(255,78,205,0.4);
+    --sq-glow: 0 0 20px rgba(57,255,20,0.4);
+ 
+    --text: #e8e8e8;
+    --text2: #888;
+    --text3: #555;
+ 
+    --font-display: 'Orbitron', monospace;
+    --font-body: 'Space Grotesk', sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+ 
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+ 
+  html { scroll-behavior: smooth; }
+ 
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+ 
+  /* SCANLINES EFFECT */
+  body::before {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+    pointer-events: none;
+    z-index: 9999;
+  }
+ 
+  /* GRID BG */
+  body::after {
+    content: '';
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image:
+      linear-gradient(rgba(0,245,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,245,255,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    pointer-events: none;
+    z-index: 0;
+  }
+ 
+  /* ─── HEADER ─── */
+  header {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(3,3,3,0.95);
+    backdrop-filter: blur(20px);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px;
+  }
+ 
+  .logo {
+    display: flex; align-items: center; gap: 12px;
+  }
+  .logo-icon {
+    width: 36px; height: 36px;
+    border: 2px solid var(--pq);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display);
+    font-size: 13px; font-weight: 700;
+    color: var(--pq);
+    box-shadow: var(--pq-glow), inset 0 0 12px rgba(0,245,255,0.1);
+    animation: pulse-border 3s ease-in-out infinite;
+  }
+  @keyframes pulse-border {
+    0%,100% { box-shadow: var(--pq-glow), inset 0 0 12px rgba(0,245,255,0.1); }
+    50% { box-shadow: 0 0 40px rgba(0,245,255,0.6), inset 0 0 20px rgba(0,245,255,0.2); }
+  }
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 15px; font-weight: 700; letter-spacing: 3px;
+    color: var(--text);
+  }
+  .logo-text span { color: var(--pq); }
+ 
+  .header-nav {
+    display: flex; gap: 4px;
+  }
+  .nav-btn {
+    background: none; border: none;
+    padding: 8px 16px; border-radius: 6px;
+    color: var(--text2); font-family: var(--font-body);
+    font-size: 13px; cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+  .nav-btn:hover, .nav-btn.active {
+    color: var(--pq); background: var(--pq-dim);
+  }
+ 
+  .header-right {
+    display: flex; align-items: center; gap: 16px;
+  }
+  .week-badge {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--text3);
+    letter-spacing: 1px;
+  }
+ 
+  /* ─── MAIN LAYOUT ─── */
+  main {
+    position: relative; z-index: 1;
+    max-width: 1400px; margin: 0 auto;
+    padding: 32px 24px;
+  }
+ 
+  /* ─── SECTION TABS ─── */
+  .page { display: none; }
+  .page.active { display: block; animation: fadeIn 0.3s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+ 
+  /* ─── HERO SCORE SECTION ─── */
+  .hero-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+ 
+  .q-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative; overflow: hidden;
+    transition: transform 0.2s, border-color 0.2s;
+    cursor: default;
+  }
+  .q-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+  .q-card.pq::before { background: var(--pq); box-shadow: 0 0 12px var(--pq); }
+  .q-card.iq::before { background: var(--iq); box-shadow: 0 0 12px var(--iq); }
+  .q-card.eq::before { background: var(--eq); box-shadow: 0 0 12px var(--eq); }
+  .q-card.sq::before { background: var(--sq); box-shadow: 0 0 12px var(--sq); }
+ 
+  .q-card:hover { transform: translateY(-4px); }
+  .q-card.pq:hover { border-color: var(--pq); box-shadow: 0 8px 32px rgba(0,245,255,0.15); }
+  .q-card.iq:hover { border-color: var(--iq); box-shadow: 0 8px 32px rgba(191,95,255,0.15); }
+  .q-card.eq:hover { border-color: var(--eq); box-shadow: 0 8px 32px rgba(255,78,205,0.15); }
+  .q-card.sq:hover { border-color: var(--sq); box-shadow: 0 8px 32px rgba(57,255,20,0.15); }
+ 
+  .q-label {
+    font-family: var(--font-display);
+    font-size: 11px; letter-spacing: 3px;
+    font-weight: 700; margin-bottom: 4px;
+  }
+  .q-card.pq .q-label { color: var(--pq); }
+  .q-card.iq .q-label { color: var(--iq); }
+  .q-card.eq .q-label { color: var(--eq); }
+  .q-card.sq .q-label { color: var(--sq); }
+ 
+  .q-name { font-size: 13px; color: var(--text2); margin-bottom: 16px; }
+ 
+  .q-score-big {
+    font-family: var(--font-display);
+    font-size: 42px; font-weight: 900; line-height: 1;
+    margin-bottom: 8px;
+  }
+  .q-card.pq .q-score-big { color: var(--pq); text-shadow: var(--pq-glow); }
+  .q-card.iq .q-score-big { color: var(--iq); text-shadow: var(--iq-glow); }
+  .q-card.eq .q-score-big { color: var(--eq); text-shadow: var(--eq-glow); }
+  .q-card.sq .q-score-big { color: var(--sq); text-shadow: var(--sq-glow); }
+ 
+  .q-denominator { font-size: 16px; color: var(--text3); }
+ 
+  .q-mini-bar {
+    margin-top: 12px;
+    height: 4px;
+    background: var(--border);
+    border-radius: 99px;
+    overflow: hidden;
+  }
+  .q-mini-fill {
+    height: 100%; border-radius: 99px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .pq .q-mini-fill { background: var(--pq); box-shadow: 0 0 8px var(--pq); }
+  .iq .q-mini-fill { background: var(--iq); box-shadow: 0 0 8px var(--iq); }
+  .eq .q-mini-fill { background: var(--eq); box-shadow: 0 0 8px var(--eq); }
+  .sq .q-mini-fill { background: var(--sq); box-shadow: 0 0 8px var(--sq); }
+ 
+  .q-habit-label {
+    font-size: 11px; color: var(--text3);
+    font-family: var(--font-mono);
+    margin-top: 12px;
+  }
+ 
+  /* ─── STATS ROW ─── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .stat-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+  }
+  .stat-label { font-size: 11px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; font-family: var(--font-mono); margin-bottom: 8px; }
+  .stat-value { font-family: var(--font-display); font-size: 28px; font-weight: 700; color: var(--text); }
+  .stat-value span { font-size: 14px; color: var(--text3); }
+  .stat-sub { font-size: 12px; color: var(--text3); margin-top: 4px; }
+ 
+  /* ─── CHARTS GRID ─── */
+  .charts-grid {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .charts-grid-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+ 
+  .chart-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .chart-title {
+    font-family: var(--font-display);
+    font-size: 11px; letter-spacing: 2px;
+    color: var(--text2); margin-bottom: 20px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .chart-title::before {
+    content: '';
+    display: inline-block;
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--pq);
+    box-shadow: 0 0 6px var(--pq);
+  }
+  canvas { max-height: 260px; }
+ 
+  /* ─── TRACKER TABLE ─── */
+  .tracker-section {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+ 
+  .section-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 20px;
+  }
+  .section-title {
+    font-family: var(--font-display);
+    font-size: 13px; letter-spacing: 3px; color: var(--text);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-title .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--pq); box-shadow: 0 0 8px var(--pq);
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+ 
+  .week-toggle {
+    display: flex; gap: 8px;
+  }
+  .week-btn {
+    background: none; border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px;
+    color: var(--text2); font-family: var(--font-mono);
+    font-size: 11px; cursor: pointer; transition: all 0.2s;
+    letter-spacing: 1px;
+  }
+  .week-btn.active, .week-btn:hover {
+    border-color: var(--pq); color: var(--pq);
+    background: var(--pq-dim);
+  }
+ 
+  .tracker-table { width: 100%; border-collapse: collapse; }
+  .tracker-table th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10px; letter-spacing: 2px; color: var(--text3);
+    padding: 8px 12px; border-bottom: 1px solid var(--border);
+    text-transform: uppercase;
+  }
+  .tracker-table td {
+    padding: 10px 12px;
+    border-bottom: 1px solid rgba(255,255,255,0.03);
+    font-size: 13px;
+    vertical-align: middle;
+  }
+  .tracker-table tr:last-child td { border-bottom: none; }
+  .tracker-table tr:hover td { background: rgba(255,255,255,0.02); }
+ 
+  .day-label {
+    font-family: var(--font-mono);
+    font-size: 12px; color: var(--text2);
+    min-width: 90px;
+  }
+  .day-label .date { font-size: 10px; color: var(--text3); margin-top: 2px; }
+ 
+  .habit-check {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 30px; height: 30px;
+    border-radius: 6px;
+    border: 1px solid var(--border2);
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 14px;
+    background: var(--bg4);
+  }
+  .habit-check:hover { border-color: var(--text3); transform: scale(1.1); }
+  .habit-check.checked-pq { background: var(--pq-dim); border-color: var(--pq); color: var(--pq); box-shadow: 0 0 10px rgba(0,245,255,0.3); }
+  .habit-check.checked-iq { background: var(--iq-dim); border-color: var(--iq); color: var(--iq); box-shadow: 0 0 10px rgba(191,95,255,0.3); }
+  .habit-check.checked-eq { background: var(--eq-dim); border-color: var(--eq); color: var(--eq); box-shadow: 0 0 10px rgba(255,78,205,0.3); }
+  .habit-check.checked-sq { background: var(--sq-dim); border-color: var(--sq); color: var(--sq); box-shadow: 0 0 10px rgba(57,255,20,0.3); }
+ 
+  .day-score {
+    font-family: var(--font-display);
+    font-size: 16px; font-weight: 700;
+    min-width: 60px; text-align: right;
+  }
+ 
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; min-width: 120px; }
+  .score-bar {
+    flex: 1; height: 4px; background: var(--border); border-radius: 99px; overflow: hidden;
+  }
+  .score-bar-fill { height: 100%; border-radius: 99px; transition: width 0.5s ease; }
+ 
+  /* ─── HEATMAP ─── */
+  .heatmap-grid {
+    display: grid;
+    grid-template-columns: auto repeat(14, 1fr);
+    gap: 4px;
+    align-items: center;
+  }
+  .heatmap-label { font-family: var(--font-mono); font-size: 10px; color: var(--text3); padding-right: 8px; text-align: right; }
+  .heatmap-cell {
+    aspect-ratio: 1;
+    border-radius: 4px;
+    transition: all 0.2s;
+    cursor: pointer;
+    position: relative;
+  }
+  .heatmap-cell:hover { transform: scale(1.3); z-index: 10; }
+  .heatmap-cell[data-v="0"] { background: var(--bg4); border: 1px solid var(--border); }
+  .heatmap-cell[data-v="1"] { background: rgba(0,245,255,0.2); }
+  .heatmap-cell[data-v="2"] { background: rgba(0,245,255,0.4); }
+  .heatmap-cell[data-v="3"] { background: rgba(0,245,255,0.65); }
+  .heatmap-cell[data-v="4"] { background: var(--pq); box-shadow: 0 0 8px var(--pq); }
+ 
+  .heatmap-days {
+    display: grid; grid-column: 2/-1;
+    grid-template-columns: repeat(14, 1fr);
+    gap: 4px; margin-bottom: 4px;
+  }
+  .heatmap-day-label { text-align: center; font-family: var(--font-mono); font-size: 9px; color: var(--text3); }
+ 
+  /* ─── REFLECTION ─── */
+  .reflection-card {
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    margin-bottom: 24px;
+  }
+  .reflection-title {
+    font-family: var(--font-display);
+    font-size: 11px; letter-spacing: 4px; color: var(--pq);
+    margin-bottom: 24px;
+  }
+  .reflection-q {
+    margin-bottom: 28px;
+  }
+  .reflection-q-label {
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--text3); letter-spacing: 2px;
+    margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+  }
+  .reflection-q-label::before { content: '//'; color: var(--pq); }
+  textarea {
+    width: 100%;
+    background: var(--bg4);
+    border: 1px solid var(--border2);
+    border-radius: 10px;
+    padding: 16px;
+    color: var(--text);
+    font-family: var(--font-body); font-size: 14px;
+    line-height: 1.7; resize: vertical;
+    min-height: 120px;
+    transition: border-color 0.2s;
+    outline: none;
+  }
+  textarea:focus { border-color: var(--pq); box-shadow: 0 0 0 2px rgba(0,245,255,0.1); }
+  .word-count { font-family: var(--font-mono); font-size: 10px; color: var(--text3); text-align: right; margin-top: 6px; }
+  .word-count.ok { color: var(--sq); }
+ 
+  .btn-primary {
+    background: var(--pq);
+    color: #000; border: none;
+    border-radius: 8px; padding: 12px 28px;
+    font-family: var(--font-display);
+    font-size: 11px; font-weight: 700;
+    letter-spacing: 2px; cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 20px rgba(0,245,255,0.3);
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 4px 24px rgba(0,245,255,0.5); }
+ 
+  /* ─── PERFORMANCE BANDS ─── */
+  .performance-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 12px; margin-bottom: 24px;
+  }
+  .perf-card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px;
+  }
+  .perf-label { font-size: 10px; color: var(--text3); font-family: var(--font-mono); letter-spacing: 2px; margin-bottom: 12px; }
+  .perf-ring-wrap { display: flex; align-items: center; gap: 16px; }
+  .perf-ring { position: relative; width: 60px; height: 60px; flex-shrink: 0; }
+  .perf-ring svg { transform: rotate(-90deg); }
+  .perf-pct {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-display); font-size: 12px; font-weight: 700;
+  }
+  .perf-info-label { font-size: 13px; font-weight: 600; color: var(--text); }
+  .perf-info-sub { font-size: 11px; color: var(--text3); margin-top: 4px; font-family: var(--font-mono); }
+ 
+  /* ─── RADAR CHART placeholder ─── */
+  .radar-card { grid-column: span 1; }
+ 
+  /* ─── TOAST ─── */
+  .toast {
+    position: fixed; bottom: 32px; right: 32px;
+    background: var(--bg3); border: 1px solid var(--pq);
+    border-radius: 10px; padding: 14px 20px;
+    font-size: 13px; color: var(--pq);
+    font-family: var(--font-mono);
+    box-shadow: 0 0 24px rgba(0,245,255,0.3);
+    z-index: 9998;
+    transform: translateY(100px); opacity: 0;
+    transition: all 0.3s;
+  }
+  .toast.show { transform: translateY(0); opacity: 1; }
+ 
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg2); }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--text3); }
+ 
+  /* ─── RESPONSIVE ─── */
+  @media (max-width: 900px) {
+    .hero-grid, .stats-row, .performance-grid { grid-template-columns: 1fr 1fr; }
+    .charts-grid, .charts-grid-2 { grid-template-columns: 1fr; }
+  }
+ 
+  /* ─── STREAK BADGES ─── */
+  .streak-badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 24px; }
+  .streak-badge {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 99px; padding: 8px 16px;
+    font-size: 12px; color: var(--text2);
+    font-family: var(--font-mono);
+  }
+  .streak-badge .emoji { font-size: 16px; }
+  .streak-badge strong { color: var(--text); }
+ 
+  /* ─── TOOLTIP ─── */
+  .tooltip-wrap { position: relative; }
+  .tooltip-wrap:hover .tooltip-box { opacity: 1; pointer-events: auto; transform: translateY(0); }
+  .tooltip-box {
+    position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%) translateY(4px);
+    background: var(--bg4); border: 1px solid var(--border2);
+    border-radius: 6px; padding: 6px 10px; white-space: nowrap;
+    font-size: 11px; color: var(--text2); font-family: var(--font-mono);
+    opacity: 0; pointer-events: none;
+    transition: all 0.15s; z-index: 100;
+  }
+ 
+  .section-divider {
+    height: 1px; background: var(--border);
+    margin: 32px 0;
+  }
+ 
+  .today-highlight td { background: rgba(0,245,255,0.03) !important; }
+  .today-highlight .day-label { color: var(--pq); }
+</style>
+</head>
+<body>
+ 
+<header>
+  <div class="logo">
+    <div class="logo-icon">4Q</div>
+    <div class="logo-text">QUOTIENT <span>TRACKER</span></div>
+  </div>
+  <nav class="header-nav">
+    <button class="nav-btn active" onclick="showPage('dashboard')">Dashboard</button>
+    <button class="nav-btn" onclick="showPage('tracker')">Daily Log</button>
+    <button class="nav-btn" onclick="showPage('charts')">Analytics</button>
+    <button class="nav-btn" onclick="showPage('reflection')">Reflection</button>
+  </nav>
+  <div class="header-right">
+    <span class="week-badge" id="current-week-badge"></span>
+  </div>
+</header>
+ 
+<main>
+ 
+  <!-- ═══════════════════════════════════════ DASHBOARD ═══════ -->
+  <div class="page active" id="page-dashboard">
+ 
+    <div class="hero-grid">
+      <div class="q-card pq">
+        <div class="q-label">PQ</div>
+        <div class="q-name">Physical Quotient</div>
+        <div class="q-score-big" id="pq-score">14<span class="q-denominator">/14</span></div>
+        <div class="q-mini-bar"><div class="q-mini-fill" id="pq-bar" style="width:0%"></div></div>
+        <div class="q-habit-label">💪 Workout · 😴 Sleep</div>
+      </div>
+      <div class="q-card iq">
+        <div class="q-label">IQ</div>
+        <div class="q-name">Intelligence Quotient</div>
+        <div class="q-score-big" id="iq-score">14<span class="q-denominator">/14</span></div>
+        <div class="q-mini-bar"><div class="q-mini-fill" id="iq-bar" style="width:0%"></div></div>
+        <div class="q-habit-label">📚 1hr Learning daily</div>
+      </div>
+      <div class="q-card eq">
+        <div class="q-label">EQ</div>
+        <div class="q-name">Emotional Quotient</div>
+        <div class="q-score-big" id="eq-score">11<span class="q-denominator">/14</span></div>
+        <div class="q-mini-bar"><div class="q-mini-fill" id="eq-bar" style="width:0%"></div></div>
+        <div class="q-habit-label">📓 Journal · 📞 Connect</div>
+      </div>
+      <div class="q-card sq">
+        <div class="q-label">SQ</div>
+        <div class="q-name">Spiritual Quotient</div>
+        <div class="q-score-big" id="sq-score">10<span class="q-denominator">/14</span></div>
+        <div class="q-mini-bar"><div class="q-mini-fill" id="sq-bar" style="width:0%"></div></div>
+        <div class="q-habit-label">🙏 Gratitude · 🧘 Reflect</div>
+      </div>
+    </div>
+ 
+    <div class="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Score</div>
+        <div class="stat-value" id="stat-total">49<span>/56</span></div>
+        <div class="stat-sub">2-week maximum</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Consistency</div>
+        <div class="stat-value" id="stat-consistency">87.5<span>%</span></div>
+        <div class="stat-sub">habits completed</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Avg / Day</div>
+        <div class="stat-value" id="stat-avg">3.5<span>/4</span></div>
+        <div class="stat-sub">habits per day</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Best Streak</div>
+        <div class="stat-value" id="stat-streak">14<span> days</span></div>
+        <div class="stat-sub">consecutive days</div>
+      </div>
+    </div>
+ 
+    <div class="streak-badges" id="streak-badges"></div>
+ 
+    <!-- HEATMAP -->
+    <div class="tracker-section">
+      <div class="section-header">
+        <div class="section-title"><div class="dot"></div>14-DAY ACTIVITY HEATMAP</div>
+      </div>
+      <div style="overflow-x:auto">
+        <div style="min-width:600px">
+          <div class="heatmap-days" id="heatmap-days"></div>
+          <div class="heatmap-grid" id="heatmap-grid"></div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;margin-top:16px;font-family:var(--font-mono);font-size:10px;color:var(--text3)">
+        Less
+        <div style="width:14px;height:14px;background:var(--bg4);border:1px solid var(--border);border-radius:3px"></div>
+        <div style="width:14px;height:14px;background:rgba(0,245,255,0.2);border-radius:3px"></div>
+        <div style="width:14px;height:14px;background:rgba(0,245,255,0.4);border-radius:3px"></div>
+        <div style="width:14px;height:14px;background:rgba(0,245,255,0.65);border-radius:3px"></div>
+        <div style="width:14px;height:14px;background:var(--pq);border-radius:3px;box-shadow:0 0 6px var(--pq)"></div>
+        More
+      </div>
+    </div>
+ 
+    <!-- CHARTS ROW -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title">DAILY SCORE — 14 DAYS</div>
+        <canvas id="barChart"></canvas>
+      </div>
+      <div class="chart-card" style="display:flex;flex-direction:column">
+        <div class="chart-title">Q-WISE SPLIT</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center">
+          <canvas id="pieChart" style="max-height:220px;max-width:220px"></canvas>
+        </div>
+      </div>
+    </div>
+ 
+    <div class="charts-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">WEEK 1 vs WEEK 2</div>
+        <canvas id="radarChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">WEEKLY PROGRESS</div>
+        <canvas id="lineChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">Q PERFORMANCE %</div>
+        <canvas id="polarChart"></canvas>
+      </div>
+    </div>
+ 
+    <!-- Q-WISE PERFORMANCE RINGS -->
+    <div class="performance-grid" id="perf-rings"></div>
+ 
+  </div>
+ 
+  <!-- ═══════════════════════════════════════ TRACKER ═══════ -->
+  <div class="page" id="page-tracker">
+    <div class="tracker-section">
+      <div class="section-header">
+        <div class="section-title"><div class="dot"></div>DAILY HABIT LOG</div>
+        <div class="week-toggle">
+          <button class="week-btn active" onclick="switchWeek(1,this)">WEEK 1</button>
+          <button class="week-btn" onclick="switchWeek(2,this)">WEEK 2</button>
+        </div>
+      </div>
+      <table class="tracker-table">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th style="color:var(--pq)">💪 PQ Habit</th>
+            <th style="color:var(--iq)">📚 IQ Habit</th>
+            <th style="color:var(--eq)">📓 EQ Habit</th>
+            <th style="color:var(--sq)">🙏 SQ Habit</th>
+            <th style="text-align:right">Score</th>
+          </tr>
+        </thead>
+        <tbody id="tracker-body"></tbody>
+      </table>
+    </div>
+  </div>
+ 
+  <!-- ═══════════════════════════════════════ CHARTS ═══════ -->
+  <div class="page" id="page-charts">
+    <div class="charts-grid" style="margin-bottom:16px">
+      <div class="chart-card">
+        <div class="chart-title">DAILY BREAKDOWN — ALL 14 DAYS</div>
+        <canvas id="stackedChart"></canvas>
+      </div>
+      <div class="chart-card" style="display:flex;flex-direction:column">
+        <div class="chart-title">OVERALL Q DISTRIBUTION</div>
+        <div style="flex:1;display:flex;align-items:center;justify-content:center">
+          <canvas id="doughnutChart" style="max-height:240px;max-width:240px"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="charts-grid-2">
+      <div class="chart-card">
+        <div class="chart-title">CUMULATIVE SCORE</div>
+        <canvas id="cumulChart"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">RADAR — BALANCE</div>
+        <canvas id="radarChart2"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">HABIT COMPLETION RATE</div>
+        <canvas id="habitRateChart"></canvas>
+      </div>
+    </div>
+  </div>
+ 
+  <!-- ═══════════════════════════════════════ REFLECTION ═══════ -->
+  <div class="page" id="page-reflection">
+    <div class="reflection-card">
+      <div class="reflection-title">WEEKLY REFLECTION SUMMARY</div>
+ 
+      <div class="reflection-q">
+        <div class="reflection-q-label">Which Q was your STRONGEST this week?</div>
+        <textarea id="ref-strongest" placeholder="Describe which quotient you excelled in and why. What habits kept you consistent? What mindset helped?" oninput="updateWordCount('ref-strongest','wc-strongest')"></textarea>
+        <div class="word-count" id="wc-strongest">0 words</div>
+      </div>
+ 
+      <div class="reflection-q">
+        <div class="reflection-q-label">Which Q was your WEAKEST and why?</div>
+        <textarea id="ref-weakest" placeholder="Be honest — which quotient did you neglect? What were the reasons? How did it affect you?" oninput="updateWordCount('ref-weakest','wc-weakest')"></textarea>
+        <div class="word-count" id="wc-weakest">0 words</div>
+      </div>
+ 
+      <div class="reflection-q">
+        <div class="reflection-q-label">What DISTRACTED you from your habits?</div>
+        <textarea id="ref-distracted" placeholder="Identify specific distractions — social media, people, environment, mindset. Be precise and honest." oninput="updateWordCount('ref-distracted','wc-distracted')"></textarea>
+        <div class="word-count" id="wc-distracted">0 words</div>
+      </div>
+ 
+      <div class="reflection-q">
+        <div class="reflection-q-label">What will you IMPROVE next week?</div>
+        <textarea id="ref-improve" placeholder="Write specific, actionable improvements. Not vague goals — exact changes you will make to your daily routine." oninput="updateWordCount('ref-improve','wc-improve')"></textarea>
+        <div class="word-count" id="wc-improve">0 words</div>
+      </div>
+ 
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-family:var(--font-mono);font-size:11px;color:var(--text3)">
+          Total: <span id="total-wc" style="color:var(--text2)">0</span> / 300 words minimum
+        </div>
+        <button class="btn-primary" onclick="saveReflection()">SAVE REFLECTION</button>
+      </div>
+    </div>
+ 
+    <!-- Saved reflection display -->
+    <div class="reflection-card" id="saved-reflection-card" style="display:none">
+      <div class="reflection-title" style="color:var(--sq)">SAVED REFLECTION</div>
+      <div id="saved-reflection-content"></div>
+    </div>
+  </div>
+ 
+</main>
+ 
+<div class="toast" id="toast"></div>
+ 
+<script>
+// ═══════════════════════════════════════════════════════
+// DATA MODEL
+// ═══════════════════════════════════════════════════════
+ 
+const DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+const WEEK_LABELS = [
+  'W1-Mon','W1-Tue','W1-Wed','W1-Thu','W1-Fri','W1-Sat','W1-Sun',
+  'W2-Mon','W2-Tue','W2-Wed','W2-Thu','W2-Fri','W2-Sat','W2-Sun'
+];
+ 
+function getDateLabels() {
+  const today = new Date();
+  const labels = [];
+  for (let i = 13; i >= 0; i--) {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    labels.push(d.toLocaleDateString('en-IN',{day:'2-digit',month:'short'}));
+  }
+  return labels;
+}
+const DATE_LABELS = getDateLabels();
+ 
+// Load or init habit data: [14 days][4 habits]
+let habitData = JSON.parse(localStorage.getItem('4q_habits') || 'null');
+if (!habitData) {
+  habitData = Array(14).fill(null).map(() => [false,false,false,false]);
+  // seed some demo data
+  const demo = [
+    [1,1,1,0],[1,0,1,1],[0,1,1,1],[1,1,0,1],[1,1,1,1],[0,1,1,0],[1,0,0,1],
+    [1,1,1,1],[0,1,0,1],[1,1,1,0],[1,0,1,1],[1,1,0,1],[0,1,1,1],[1,1,1,1]
+  ];
+  habitData = demo.map(row => row.map(v => !!v));
+}
+ 
+let reflection = JSON.parse(localStorage.getItem('4q_reflection') || '{}');
+ 
+function save() {
+  localStorage.setItem('4q_habits', JSON.stringify(habitData));
+}
+ 
+// ═══════════════════════════════════════════════════════
+// DERIVED STATS
+// ═══════════════════════════════════════════════════════
+ 
+function getDayScore(i) { return habitData[i].filter(Boolean).length; }
+function getQScore(q) { return habitData.reduce((acc,day) => acc + (day[q]?1:0), 0); }
+function getTotalScore() { return habitData.reduce((acc,day) => acc + day.filter(Boolean).length, 0); }
+ 
+function getConsistency() {
+  const total = 14 * 4;
+  return Math.round((getTotalScore() / total) * 100);
+}
+ 
+function getAvgPerDay() {
+  return (getTotalScore() / 14).toFixed(1);
+}
+ 
+function getBestStreak() {
+  let max = 0, cur = 0;
+  for (let i = 0; i < 14; i++) {
+    if (getDayScore(i) > 0) { cur++; max = Math.max(max, cur); }
+    else cur = 0;
+  }
+  return max;
+}
+ 
+function getPerfectDays() { return habitData.filter(d => d.every(Boolean)).length; }
+ 
+// ═══════════════════════════════════════════════════════
+// CHARTS
+// ═══════════════════════════════════════════════════════
+ 
+const CHART_DEFAULTS = {
+  color: '#888',
+  borderColor: '#333',
+  plugins: {
+    legend: { labels: { color: '#888', font: { family: 'JetBrains Mono', size: 11 }, boxWidth: 12, padding: 16 } },
+    tooltip: {
+      backgroundColor: '#111',
+      borderColor: '#2a2a2a',
+      borderWidth: 1,
+      titleColor: '#e8e8e8',
+      bodyColor: '#888',
+      titleFont: { family: 'Orbitron', size: 11 },
+      bodyFont: { family: 'JetBrains Mono', size: 11 }
+    }
+  },
+  scales: {
+    x: { ticks: { color: '#555', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: '#1e1e1e' } },
+    y: { ticks: { color: '#555', font: { family: 'JetBrains Mono', size: 10 } }, grid: { color: 'rgba(255,255,255,0.04)' }, border: { color: '#1e1e1e' } }
+  }
+};
+ 
+let charts = {};
+ 
+function destroyChart(id) {
+  if (charts[id]) { charts[id].destroy(); delete charts[id]; }
+}
+ 
+function initCharts() {
+  const dayScores = habitData.map((d,i) => getDayScore(i));
+  const qScores = [0,1,2,3].map(q => getQScore(q));
+  const labels = DATE_LABELS;
+ 
+  // ─── Bar Chart (Dashboard)
+  destroyChart('bar');
+  charts.bar = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Daily Score',
+        data: dayScores,
+        backgroundColor: dayScores.map(s =>
+          s === 4 ? 'rgba(0,245,255,0.8)' :
+          s === 3 ? 'rgba(0,245,255,0.5)' :
+          s === 2 ? 'rgba(191,95,255,0.5)' :
+          s === 1 ? 'rgba(255,78,205,0.4)' : 'rgba(255,255,255,0.05)'
+        ),
+        borderColor: dayScores.map(s => s === 4 ? '#00f5ff' : 'transparent'),
+        borderWidth: 1,
+        borderRadius: 6,
+        borderSkipped: false,
+      }]
+    },
+    options: {
+      ...CHART_DEFAULTS,
+      responsive: true, maintainAspectRatio: true,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: { display: false } },
+      scales: {
+        ...CHART_DEFAULTS.scales,
+        y: { ...CHART_DEFAULTS.scales.y, min: 0, max: 4, ticks: { ...CHART_DEFAULTS.scales.y.ticks, stepSize: 1 } }
+      }
+    }
+  });
+ 
+  // ─── Pie Chart
+  destroyChart('pie');
+  charts.pie = new Chart(document.getElementById('pieChart'), {
+    type: 'pie',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [{ data: qScores, backgroundColor: ['rgba(0,245,255,0.7)','rgba(191,95,255,0.7)','rgba(255,78,205,0.7)','rgba(57,255,20,0.7)'], borderColor: ['#00f5ff','#bf5fff','#ff4ecd','#39ff14'], borderWidth: 2 }]
+    },
+    options: { responsive:true, maintainAspectRatio:true, plugins: CHART_DEFAULTS.plugins }
+  });
+ 
+  // ─── Radar
+  destroyChart('radar');
+  const w1 = [0,1,2,3].map(q => habitData.slice(0,7).filter(d=>d[q]).length);
+  const w2 = [0,1,2,3].map(q => habitData.slice(7,14).filter(d=>d[q]).length);
+  charts.radar = new Chart(document.getElementById('radarChart'), {
+    type: 'radar',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [
+        { label: 'Week 1', data: w1, borderColor: '#00f5ff', backgroundColor: 'rgba(0,245,255,0.1)', pointBackgroundColor: '#00f5ff' },
+        { label: 'Week 2', data: w2, borderColor: '#bf5fff', backgroundColor: 'rgba(191,95,255,0.1)', pointBackgroundColor: '#bf5fff' }
+      ]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: CHART_DEFAULTS.plugins,
+      scales: { r: { ticks: { color:'#555', font:{family:'JetBrains Mono',size:9}, backdropColor:'transparent' }, grid: { color:'rgba(255,255,255,0.06)' }, pointLabels: { color:'#888', font:{family:'Orbitron',size:11} }, angleLines: { color:'rgba(255,255,255,0.06)' }, min:0, max:7 } }
+    }
+  });
+ 
+  // ─── Line Chart
+  destroyChart('line');
+  let cum = 0;
+  charts.line = new Chart(document.getElementById('lineChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Score', data: dayScores,
+        borderColor: '#bf5fff', backgroundColor: 'rgba(191,95,255,0.1)',
+        fill: true, tension: 0.4,
+        pointBackgroundColor: '#bf5fff', pointRadius: 4, pointHoverRadius: 6
+      }]
+    },
+    options: {
+      ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:true,
+      plugins: { ...CHART_DEFAULTS.plugins, legend: {display:false} },
+      scales: { ...CHART_DEFAULTS.scales, y: { ...CHART_DEFAULTS.scales.y, min:0, max:4 } }
+    }
+  });
+ 
+  // ─── Polar Area
+  destroyChart('polar');
+  charts.polar = new Chart(document.getElementById('polarChart'), {
+    type: 'polarArea',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [{ data: qScores.map(s => Math.round(s/14*100)), backgroundColor: ['rgba(0,245,255,0.5)','rgba(191,95,255,0.5)','rgba(255,78,205,0.5)','rgba(57,255,20,0.5)'], borderColor: ['#00f5ff','#bf5fff','#ff4ecd','#39ff14'], borderWidth: 1 }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: CHART_DEFAULTS.plugins,
+      scales: { r: { ticks: { color:'#555', backdropColor:'transparent', font:{family:'JetBrains Mono',size:9} }, grid: { color:'rgba(255,255,255,0.06)' } } }
+    }
+  });
+ 
+  // ─── Stacked Bar (Analytics page)
+  destroyChart('stacked');
+  charts.stacked = new Chart(document.getElementById('stackedChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label:'PQ', data: habitData.map(d=>d[0]?1:0), backgroundColor:'rgba(0,245,255,0.7)', borderRadius:0 },
+        { label:'IQ', data: habitData.map(d=>d[1]?1:0), backgroundColor:'rgba(191,95,255,0.7)', borderRadius:0 },
+        { label:'EQ', data: habitData.map(d=>d[2]?1:0), backgroundColor:'rgba(255,78,205,0.7)', borderRadius:0 },
+        { label:'SQ', data: habitData.map(d=>d[3]?1:0), backgroundColor:'rgba(57,255,20,0.7)', borderRadius:{topLeft:4,topRight:4,bottomLeft:0,bottomRight:0} }
+      ]
+    },
+    options: { ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:true, scales: { ...CHART_DEFAULTS.scales, x:{...CHART_DEFAULTS.scales.x, stacked:true}, y:{...CHART_DEFAULTS.scales.y, stacked:true, min:0,max:4, ticks:{...CHART_DEFAULTS.scales.y.ticks, stepSize:1}} } }
+  });
+ 
+  // ─── Doughnut
+  destroyChart('doughnut');
+  charts.doughnut = new Chart(document.getElementById('doughnutChart'), {
+    type: 'doughnut',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [{ data: qScores, backgroundColor: ['rgba(0,245,255,0.75)','rgba(191,95,255,0.75)','rgba(255,78,205,0.75)','rgba(57,255,20,0.75)'], borderColor: '#111', borderWidth: 3, hoverOffset: 8 }]
+    },
+    options: { responsive:true, maintainAspectRatio:true, plugins: { ...CHART_DEFAULTS.plugins, legend: CHART_DEFAULTS.plugins.legend }, cutout:'65%' }
+  });
+ 
+  // ─── Cumulative
+  destroyChart('cumul');
+  let c = 0; const cdata = dayScores.map(s => (c+=s, c));
+  charts.cumul = new Chart(document.getElementById('cumulChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label:'Cumulative Score', data: cdata,
+        borderColor:'#39ff14', backgroundColor:'rgba(57,255,20,0.08)',
+        fill:true, tension:0.4, pointBackgroundColor:'#39ff14', pointRadius:3
+      }]
+    },
+    options: { ...CHART_DEFAULTS, responsive:true, maintainAspectRatio:true, plugins: {...CHART_DEFAULTS.plugins, legend:{display:false}} }
+  });
+ 
+  // ─── Radar 2
+  destroyChart('radar2');
+  charts.radar2 = new Chart(document.getElementById('radarChart2'), {
+    type: 'radar',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [{
+        label:'14-Day Score', data: qScores,
+        borderColor:'#ff4ecd', backgroundColor:'rgba(255,78,205,0.15)',
+        pointBackgroundColor:'#ff4ecd', pointRadius:5
+      }]
+    },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      plugins: CHART_DEFAULTS.plugins,
+      scales: { r: { ticks:{color:'#555',backdropColor:'transparent',font:{family:'JetBrains Mono',size:9}}, grid:{color:'rgba(255,255,255,0.06)'}, pointLabels:{color:'#888',font:{family:'Orbitron',size:11}}, angleLines:{color:'rgba(255,255,255,0.06)'}, min:0, max:14 } }
+    }
+  });
+ 
+  // ─── Habit Rate Horizontal Bar
+  destroyChart('habitRate');
+  const rates = [0,1,2,3].map(q => Math.round(getQScore(q)/14*100));
+  charts.habitRate = new Chart(document.getElementById('habitRateChart'), {
+    type: 'bar',
+    data: {
+      labels: ['PQ','IQ','EQ','SQ'],
+      datasets: [{ label:'Completion %', data: rates, backgroundColor:['rgba(0,245,255,0.7)','rgba(191,95,255,0.7)','rgba(255,78,205,0.7)','rgba(57,255,20,0.7)'], borderRadius:8 }]
+    },
+    options: {
+      ...CHART_DEFAULTS, indexAxis:'y', responsive:true, maintainAspectRatio:true,
+      plugins: {...CHART_DEFAULTS.plugins, legend:{display:false}},
+      scales: { x:{...CHART_DEFAULTS.scales.x, min:0, max:100}, y:{...CHART_DEFAULTS.scales.y} }
+    }
+  });
+}
+ 
+// ═══════════════════════════════════════════════════════
+// HEATMAP
+// ═══════════════════════════════════════════════════════
+ 
+function renderHeatmap() {
+  const daysEl = document.getElementById('heatmap-days');
+  const gridEl = document.getElementById('heatmap-grid');
+  daysEl.innerHTML = DATE_LABELS.map(l => `<div class="heatmap-day-label">${l.split(' ')[0]}</div>`).join('');
+ 
+  const rows = ['PQ','IQ','EQ','SQ'];
+  let html = '';
+  rows.forEach((label, q) => {
+    html += `<div class="heatmap-label">${label}</div>`;
+    for (let d = 0; d < 14; d++) {
+      const v = habitData[d][q] ? getDayScore(d) : 0;
+      html += `<div class="heatmap-cell tooltip-wrap" data-v="${habitData[d][q]?1:0}" onclick="toggleHabit(${d},${q})" style="--accent:var(--${label.toLowerCase()})">
+        <div class="tooltip-box">${DATE_LABELS[d]} · ${label}</div>
+      </div>`;
+    }
+  });
+  gridEl.innerHTML = html;
+}
+ 
+// ═══════════════════════════════════════════════════════
+// TRACKER TABLE
+// ═══════════════════════════════════════════════════════
+ 
+let currentWeek = 1;
+ 
+function switchWeek(w, btn) {
+  currentWeek = w;
+  document.querySelectorAll('.week-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderTracker();
+}
+ 
+function renderTracker() {
+  const start = (currentWeek - 1) * 7;
+  const qColors = ['pq','iq','eq','sq'];
+  const qEmojis = ['💪','📚','📓','🙏'];
+  const today = new Date();
+ 
+  let html = '';
+  for (let i = start; i < start + 7; i++) {
+    const score = getDayScore(i);
+    const pct = (score / 4) * 100;
+    const dayName = DAYS[i % 7];
+    const isToday = i === 13;
+    const fillColor = score === 4 ? 'var(--pq)' : score >= 2 ? 'var(--iq)' : 'var(--eq)';
+ 
+    html += `<tr class="${isToday?'today-highlight':''}">
+      <td class="day-label">
+        <div>${dayName}</div>
+        <div class="date">${DATE_LABELS[i]}</div>
+      </td>
+      ${[0,1,2,3].map(q => `
+      <td>
+        <div class="tooltip-wrap">
+          <div class="habit-check ${habitData[i][q]?'checked-'+qColors[q]:''}" onclick="toggleHabit(${i},${q},true)">
+            ${habitData[i][q] ? '✓' : ''}
+          </div>
+          <div class="tooltip-box">Click to toggle</div>
+        </div>
+      </td>`).join('')}
+      <td>
+        <div style="display:flex;align-items:center;gap:10px;justify-content:flex-end">
+          <div class="score-bar-wrap">
+            <div class="score-bar">
+              <div class="score-bar-fill" style="width:${pct}%;background:${fillColor};box-shadow:0 0 6px ${fillColor}"></div>
+            </div>
+          </div>
+          <div class="day-score" style="color:${score===4?'var(--pq)':score>=2?'var(--iq)':'var(--text2)'}">${score}</div>
+        </div>
+      </td>
+    </tr>`;
+  }
+  document.getElementById('tracker-body').innerHTML = html;
+}
+ 
+// ═══════════════════════════════════════════════════════
+// TOGGLE HABIT
+// ═══════════════════════════════════════════════════════
+ 
+function toggleHabit(day, q, fromTracker) {
+  habitData[day][q] = !habitData[day][q];
+  save();
+  updateDashboard();
+  renderHeatmap();
+  if (fromTracker) renderTracker();
+  initCharts();
+  showToast(habitData[day][q] ? '✓ Habit logged!' : '✗ Habit removed');
+}
+ 
+// ═══════════════════════════════════════════════════════
+// DASHBOARD UPDATE
+// ═══════════════════════════════════════════════════════
+ 
+function updateDashboard() {
+  const qColors = ['pq','iq','eq','sq'];
+  const qScores = [0,1,2,3].map(q => getQScore(q));
+ 
+  qColors.forEach((c, q) => {
+    const score = qScores[q];
+    const el = document.getElementById(`${c}-score`);
+    if (el) el.innerHTML = `${score}<span class="q-denominator">/14</span>`;
+    const bar = document.getElementById(`${c}-bar`);
+    if (bar) bar.style.width = `${(score/14)*100}%`;
+  });
+ 
+  document.getElementById('stat-total').innerHTML = `${getTotalScore()}<span>/56</span>`;
+  document.getElementById('stat-consistency').innerHTML = `${getConsistency()}<span>%</span>`;
+  document.getElementById('stat-avg').innerHTML = `${getAvgPerDay()}<span>/4</span>`;
+  document.getElementById('stat-streak').innerHTML = `${getBestStreak()}<span> days</span>`;
+ 
+  // Streak badges
+  const badges = [
+    { emoji: '🏆', label: 'Perfect Days', val: getPerfectDays() },
+    { emoji: '🔥', label: 'Best Streak', val: getBestStreak() + 'd' },
+    { emoji: '📈', label: 'Week 2 vs W1', val: (() => {
+      const w1 = habitData.slice(0,7).reduce((a,d)=>a+d.filter(Boolean).length,0);
+      const w2 = habitData.slice(7,14).reduce((a,d)=>a+d.filter(Boolean).length,0);
+      const diff = w2 - w1;
+      return (diff > 0 ? '+' : '') + diff;
+    })() },
+    { emoji: '⚡', label: 'Consistency', val: getConsistency() + '%' },
+  ];
+  document.getElementById('streak-badges').innerHTML = badges.map(b =>
+    `<div class="streak-badge"><span class="emoji">${b.emoji}</span> ${b.label}: <strong>${b.val}</strong></div>`
+  ).join('');
+ 
+  // Performance rings
+  const ringColors = ['#00f5ff','#bf5fff','#ff4ecd','#39ff14'];
+  const ringLabels = ['PQ — Physical','IQ — Intelligence','EQ — Emotional','SQ — Spiritual'];
+  const ringHabits = ['Workout + Sleep','1hr Learning','Journal + Connect','Gratitude + Reflect'];
+  const ringBg = ['rgba(0,245,255,0.15)','rgba(191,95,255,0.15)','rgba(255,78,205,0.15)','rgba(57,255,20,0.15)'];
+ 
+  document.getElementById('perf-rings').innerHTML = qScores.map((s, q) => {
+    const pct = Math.round((s/14)*100);
+    const r = 24; const circ = 2 * Math.PI * r;
+    const offset = circ - (pct/100) * circ;
+    return `<div class="perf-card">
+      <div class="perf-label">QUOTIENT ${q+1}</div>
+      <div class="perf-ring-wrap">
+        <div class="perf-ring">
+          <svg width="60" height="60" viewBox="0 0 60 60">
+            <circle cx="30" cy="30" r="${r}" fill="none" stroke="${ringBg[q]}" stroke-width="6"/>
+            <circle cx="30" cy="30" r="${r}" fill="none" stroke="${ringColors[q]}" stroke-width="6"
+              stroke-dasharray="${circ}" stroke-dashoffset="${offset}"
+              stroke-linecap="round" style="filter:drop-shadow(0 0 4px ${ringColors[q]})"/>
+          </svg>
+          <div class="perf-pct" style="color:${ringColors[q]}">${pct}%</div>
+        </div>
+        <div>
+          <div class="perf-info-label" style="color:${ringColors[q]}">${ringLabels[q]}</div>
+          <div class="perf-info-sub">${s}/14 days · ${ringHabits[q]}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+ 
+  // Week badge
+  const now = new Date();
+  document.getElementById('current-week-badge').textContent =
+    now.toLocaleDateString('en-IN',{day:'2-digit',month:'short',year:'numeric'});
+}
+ 
+// ═══════════════════════════════════════════════════════
+// REFLECTION
+// ═══════════════════════════════════════════════════════
+ 
+function updateWordCount(id, wcId) {
+  const text = document.getElementById(id).value.trim();
+  const words = text ? text.split(/\s+/).length : 0;
+  const wcEl = document.getElementById(wcId);
+  wcEl.textContent = `${words} words`;
+ 
+  // Total
+  const ids = ['ref-strongest','ref-weakest','ref-distracted','ref-improve'];
+  const total = ids.reduce((a,x) => {
+    const t = document.getElementById(x).value.trim();
+    return a + (t ? t.split(/\s+/).length : 0);
+  }, 0);
+  const totalEl = document.getElementById('total-wc');
+  totalEl.textContent = total;
+  totalEl.style.color = total >= 300 ? 'var(--sq)' : 'var(--eq)';
+  if (total >= 300) totalEl.parentElement.insertAdjacentHTML('afterbegin', '<span style="color:var(--sq);font-size:12px;margin-right:8px">✓ 300+ words!</span>');
+}
+ 
+function saveReflection() {
+  reflection = {
+    strongest: document.getElementById('ref-strongest').value,
+    weakest: document.getElementById('ref-weakest').value,
+    distracted: document.getElementById('ref-distracted').value,
+    improve: document.getElementById('ref-improve').value,
+    date: new Date().toISOString()
+  };
+  localStorage.setItem('4q_reflection', JSON.stringify(reflection));
+ 
+  const qs = ['strongest','weakest','distracted','improve'];
+  const labels = ['Strongest Q','Weakest Q','Distractions','Next Week Plan'];
+  const colors = ['var(--sq)','var(--eq)','var(--pq)','var(--iq)'];
+  const card = document.getElementById('saved-reflection-card');
+  card.style.display = 'block';
+  document.getElementById('saved-reflection-content').innerHTML = qs.map((q,i) =>
+    reflection[q] ? `<div style="margin-bottom:20px">
+      <div style="font-family:var(--font-mono);font-size:11px;color:${colors[i]};letter-spacing:2px;margin-bottom:8px">// ${labels[i].toUpperCase()}</div>
+      <div style="font-size:14px;line-height:1.8;color:var(--text2)">${reflection[q].replace(/\n/g,'<br>')}</div>
+    </div>` : ''
+  ).join('');
+  showToast('Reflection saved! 📝');
+}
+ 
+function loadReflection() {
+  if (reflection.strongest) document.getElementById('ref-strongest').value = reflection.strongest;
+  if (reflection.weakest) document.getElementById('ref-weakest').value = reflection.weakest;
+  if (reflection.distracted) document.getElementById('ref-distracted').value = reflection.distracted;
+  if (reflection.improve) document.getElementById('ref-improve').value = reflection.improve;
+  ['ref-strongest','ref-weakest','ref-distracted','ref-improve'].forEach((id,i) => {
+    const wcIds = ['wc-strongest','wc-weakest','wc-distracted','wc-improve'];
+    updateWordCount(id, wcIds[i]);
+  });
+}
+ 
+// ═══════════════════════════════════════════════════════
+// NAVIGATION
+// ═══════════════════════════════════════════════════════
+ 
+function showPage(id) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById(`page-${id}`).classList.add('active');
+  document.querySelector(`.nav-btn[onclick="showPage('${id}')"]`).classList.add('active');
+  if (id === 'tracker') renderTracker();
+  if (id === 'charts') { setTimeout(initCharts, 50); }
+}
+ 
+// ═══════════════════════════════════════════════════════
+// TOAST
+// ═══════════════════════════════════════════════════════
+ 
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+ 
+// ═══════════════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════════════
+ 
+updateDashboard();
+renderHeatmap();
+loadReflection();
+setTimeout(initCharts, 100);
+</script>
+</body>
+</html>
