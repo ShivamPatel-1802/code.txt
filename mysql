@@ -1,0 +1,19 @@
+USE college;  -- select your schema first
+
+CREATE TABLE Customer (
+    CustomerID INT NOT NULL,
+    Name VARCHAR(50),
+    City VARCHAR(50),
+    Phone VARCHAR(15),
+    Email VARCHAR(50),
+    PRIMARY KEY (CustomerID)
+);
+
+INSERT INTO Customer VALUES
+    (101, 'Shivam', 'Ahmedabad', '9876543210', 'shivam@mail.com'),
+    (102, 'Pradip', 'Surat', '9876543211', 'pradip@mail.com'),
+    (103, 'Diya', 'Vadodara', '9876543212', 'diya@mail.com'),
+    (104, 'Arunima', 'Rajkot', '9876543213', 'arunima@mail.com'),
+    (105, 'Yash', 'Gandhinagar', '9876543214', 'yash@mail.com');
+
+SELECT * FROM Customer;
